@@ -79,6 +79,9 @@ bool HM_Packets::Begin()
 	// Configure listening pipe with the simulated DTU address and start listening
 	rf24Radio.openReadingPipe(1, HM_DTU_RADIO_ID);
 
+	// Gazell timeslot Ticker
+	gazellTimeslot.attach_ms(4, TimeslotCallback, (void *)this);
+
 	return true;
 }
 
@@ -299,6 +302,19 @@ void HM_Packets::dumpData(uint8_t *p, int len)
 // private member implementation
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void HM_Packets::TimeslotCallback(void *ptr)
+{
+	HM_Packets *inst = (HM_Packets *)ptr;
+
+	if (inst->eState == HM_State_CheckResponse)
+	{
+		inst->IncrementChannel(&inst->tInverter[inst->curInvInst].activeRcvChannel);
+		inst->rf24Radio.setChannel(inst->tInverter[inst->curInvInst].activeRcvChannel);
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void HM_Packets::IncrementChannel(uint8_t *pChannel)
 {
 	int curChannel;
@@ -322,7 +338,7 @@ bool HM_Packets::StateMachine(void)
 	switch (eState)
 	{
 	case HM_State_Idle:
-		if ((cntInvInst > 0) && (cntInvInst < HM_MAXINVERTERINSTANCES))
+		if ((cntInvInst > 0) && (cntInvInst <= HM_MAXINVERTERINSTANCES))
 			eState = HM_State_SetInvInstance;
 		break;
 
@@ -336,6 +352,7 @@ bool HM_Packets::StateMachine(void)
 		PreparePacket();
 		SendPacket();
 		tInverter[curInvInst].sndTimeoutTick = HM_GETTICKCOUNT + 1000;
+
 		eState = HM_State_CheckResponse;
 		ret = true;
 		break;
@@ -347,8 +364,6 @@ bool HM_Packets::StateMachine(void)
 		}
 		else
 		{
-			IncrementChannel(&tInverter[curInvInst].activeRcvChannel);
-
 			if (HM_GETTICKCOUNT > tInverter[curInvInst].rcvTimeoutTick)
 			{
 				tInverter[curInvInst].rcvTimeoutTick = HM_GETTICKCOUNT + 10000;
@@ -376,7 +391,10 @@ bool HM_Packets::StateMachine(void)
 
 void HM_Packets::PreparePacket(void)
 {
-	sendBytes = PrepareTimePacket(tInverter[curInvInst].address >> 8, HM_DTU_RADIO_ID >> 8, 0x11, 0x00);
+	if(curInvInst != 3)
+		sendBytes = PrepareTimePacket(tInverter[curInvInst].address >> 8, HM_DTU_RADIO_ID >> 8, 0x11, 0x00);
+	else
+		sendBytes = PrepareCmdPacket(tInverter[curInvInst].address >> 8, HM_DTU_RADIO_ID >> 8, 0x36, 0x00);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -387,7 +405,7 @@ void HM_Packets::SendPacket(void)
 	rf24Radio.stopListening();
 
 	// Debugging output
-	HM_PRINTF(HM_PSTR("%02u|"), tInverter[curInvInst].activeSndChannel);
+	HM_PRINTF(HM_PSTR("=>|%02u|"), tInverter[curInvInst].activeSndChannel);
 	dumpMillis(HM_GETTICKCOUNT);
 	dumpMillis(HM_GETTICKCOUNT - lastDump);
 	lastDump = HM_GETTICKCOUNT;
@@ -397,7 +415,7 @@ void HM_Packets::SendPacket(void)
 	dumpData(&sendBuffer[1], 4);
 	dumpData(&sendBuffer[5], 4);
 	dumpData(&sendBuffer[9], sendBytes - 9);
-	HM_PRINTF(HM_PSTR("\r"));
+	HM_PRINTF(HM_PSTR("\r\n"));
 
 	// Overwrite send dump output
 	sendLineLF = false;
@@ -489,7 +507,7 @@ void HM_Packets::ProcessPacket(void)
 		// lastPacketRcv = serialHdr.timestamp;
 
 		// Channel
-		HM_PRINTF(HM_PSTR("%02u|"), p.channel);
+		HM_PRINTF(HM_PSTR("<=|%02u|"), p.channel);
 
 		// Write timestamp, packets lost, address and payload length
 		dumpMillis(serialHdr.timestamp);

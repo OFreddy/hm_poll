@@ -13,7 +13,7 @@
 #define HM_DTU_RADIO_ID ((uint64_t)0x1234567801ULL) // DTU address of the simulated DTU
 #define HM_DUMMY_RADIO_ID ((uint64_t)0xDEADBEEF01ULL) // Dummy radio id to prevent rf24 from sending acks
 
-#define HM_RF_PA_LEVEL RF24_PA_LOW   // Radio PA level for transmitting packages
+#define HM_RF_PA_LEVEL RF24_PA_MAX    // Radio PA level for transmitting packages
 #define HM_RF_DATARATE (RF24_250KBPS) // Datarate
 #define HM_RF_ADDRESSWIDTH (5)        // Length in bytes of hoymiles address field
 

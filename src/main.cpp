@@ -8,28 +8,22 @@
 */
 
 #include <Arduino.h>
-#include <Arduino.h>
 #include <SPI.h>
 #include <CircularBuffer.h>
 #include <RF24.h>
 #include <RF24_config.h>
 
+#include "peripherals.h"
+#include "app.h"
 #include "hm_crc.h"
 #include "hm_packets.h"
 
-// Hardware configuration
-#define RF1_CE_PIN (9)
-#define RF1_CS_PIN (6)
-#define RF2_CE_PIN (7)
-#define RF2_CS_PIN (8)
-#define RF1_IRQ_PIN (2)
-#define RF2_IRQ_PIN (3)
-#define LED_PIN_STATUS (A0)
-
 #define SER_BAUDRATE (115200)
 
-#define INV1_RADIO_ID ((uint64_t)0x1946107301ULL) // 0x1946107300ULL = WR1
-#define INV2_RADIO_ID ((uint64_t)0x3944107301ULL) // 0x3944107301ULL = WR2
+#define INV1_RADIO_ID ((uint64_t)0x1946107301ULL) // 114173104619 = WR1
+#define INV2_RADIO_ID ((uint64_t)0x3944107301ULL) // 114173104439 = WR2
+#define INV3_RADIO_ID ((uint64_t)0x0121678101ULL) // 116181672101 = WR3
+#define INV4_RADIO_ID ((uint64_t)0x3503506301ULL) // 104163500335 = WR4
 
 uint32_t previousMillis = 0; // will store last time LED was updated
 const long interval = 250;	 // interval at which to blink (milliseconds)
@@ -40,13 +34,17 @@ int ledState = LOW;			 // ledState used to set the LED
 // This pin is used hard coded in SPI library
 static RF24 radio(RF1_CE_PIN, RF1_CS_PIN);
 
+// Hoymiles application instance
+static app hmComm;
+
 // Hoymiles packets instance
 static HM_Packets hmPackets(radio);
 
 // Function forward declaration
 static void DumpConfig();
 
-static void handleNrf1Irq()
+
+static IRAM_ATTR void handleNrf1Irq()
 {
 	hmPackets.RadioIrqCallback();
 }
@@ -69,6 +67,9 @@ static void DumpConfig()
 
 void setup(void)
 {
+    hmComm.setup(5000);
+
+#if defined(ARDUINO_AVR_NANO)
 	pinMode(LED_PIN_STATUS, OUTPUT);
 
 	// Test hardware => disable second RF24
@@ -76,10 +77,10 @@ void setup(void)
 	pinMode(RF2_CS_PIN, OUTPUT);
 	digitalWrite(RF2_CE_PIN, false);
 	digitalWrite(RF2_CS_PIN, true);
-
+	pinMode(RF2_IRQ_PIN, INPUT);
+#endif
 	// Configure nRF IRQ input
 	pinMode(RF1_IRQ_PIN, INPUT);
-	pinMode(RF2_IRQ_PIN, INPUT);
 
 	Serial.begin(SER_BAUDRATE);
 	Serial.flush();
@@ -87,6 +88,8 @@ void setup(void)
 	// Add inverter instances - check HM_MAXINVERTERINSTANCES in hm_config.h
 	bool res = hmPackets.AddInverterInstance(INV1_RADIO_ID);
 	res &= hmPackets.AddInverterInstance(INV2_RADIO_ID);
+	res &= hmPackets.AddInverterInstance(INV3_RADIO_ID);
+	res &= hmPackets.AddInverterInstance(INV4_RADIO_ID);
 	if (!res)
 	{
 		Serial.println(F("Failed to add inverter instances!"));
@@ -101,24 +104,25 @@ void setup(void)
 			;
 	}
 
-	hmPackets.SetUnixTimeStamp(0x623C8EA3);
-
-	Serial.println(F("-- HM communication example --"));
+	Serial.println(F("\r\n\r\n-- HM communication example --"));
 
 	activateConf();
 }
 
 void loop(void)
 {
+    hmComm.loop();
+
 	// Cyclic communication processing
+	hmPackets.SetUnixTimeStamp(hmComm.getUnixTimeStamp());
 	hmPackets.Cyclic();
 
 	// Config info
-	if(Serial.available())
+	if (Serial.available())
 	{
 		uint8_t cmd = Serial.read();
 
-		if(cmd == 'c')
+		if (cmd == 'c')
 		{
 			DumpConfig();
 		}
@@ -133,6 +137,9 @@ void loop(void)
 		// if the LED is off turn it on and vice-versa:
 		ledState = not(ledState);
 		// set the LED with the ledState of the variable:
+#if defined(ARDUINO_AVR_NANO)
 		digitalWrite(LED_PIN_STATUS, ledState);
+#endif
 	}
 }
+

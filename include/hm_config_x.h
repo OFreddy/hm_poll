@@ -32,6 +32,21 @@
 #define HM_PRINTF printf_P
 #define HM_PSTR(x) PSTR(x)
 
+#elif defined(ESP8266)
+
+// Macros
+#define HM_DISABLE_EINT noInterrupts() // Disable internal intterrupt
+#define HM_ENABLE_EINT interrupts()  // Enable external interrupt
+
+#define HM_TICKCOUNTTYPE uint32_t  // Data type for tickcounter
+#define HM_GETTICKCOUNT (millis()) // Get tick counter; should be a millisecond timebase
+
+// Debugging output
+#define HM_PRINTF printf_P
+#define HM_PSTR(x) PSTR(x)
+
+#elif defined(ESP32)
+#error Unsupported board selection
 #else
 // Todo: add more targets
 #error Unsupported board selection

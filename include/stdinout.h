@@ -1,6 +1,8 @@
 #ifndef _STDINOUT_H
 #define _STDINOUT_H
 
+#if defined(STDINOUT)
+
 // no need to make an instance of this yourself
 class initializeSTDINOUT
 {
@@ -13,5 +15,7 @@ public:
 // Call the constructor in each compiled file this header is included in
 // static means the names won't collide
 static initializeSTDINOUT initializeSTDINOUT_obj;
+
+#endif
 
 #endif

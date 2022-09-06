@@ -35,6 +35,7 @@ typedef struct _HM_InverterInstance_t
     uint8_t addressBytes[HM_RF_ADDRESSWIDTH];
 
     // Channel handling
+    HM_TICKCOUNTTYPE channelHopTick;
     uint8_t activeRcvChannel;
     uint8_t activeSndChannel;
 

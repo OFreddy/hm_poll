@@ -21,6 +21,8 @@
 #include <RF24.h>
 #include <RF24_config.h>
 
+#include <Ticker.h>
+
 #include "hm_config_x.h"
 #include "hm_config.h"
 #include "hm_types.h"
@@ -33,11 +35,10 @@ private:
 	CRC16 crc16;
 
 	// Unix epoch time
-	uint32_t epochTime;
+	uint32_t epochTime = 0x623C8EA3;
 	HM_TICKCOUNTTYPE epochTick;
 
 	// Channels to send on and to listen to
-	// const uint8_t usedChannels[15] = {0, 3, 7, 8, 9, 11, 19, 20, 23, 29, 37, 39, 40, 61, 75};
 	const uint8_t usedChannels[5] = {3, 23, 40, 61, 75};
 
 	// Radio instance
@@ -77,6 +78,9 @@ private:
 	uint8_t PrepareTimePacket(uint32_t wrAdr, uint32_t dtuAdr, uint8_t uk1, uint8_t uk2);
 	uint8_t PrepareCmdPacket(uint32_t wrAdr, uint32_t dtuAdr, uint8_t mid, uint8_t cmd);
 
+	// Channel hopping bazed on gazell link layer
+	Ticker gazellTimeslot;
+	static void TimeslotCallback(void *ptr);
 	void IncrementChannel(uint8_t *pChannel);
 
 	// Settings

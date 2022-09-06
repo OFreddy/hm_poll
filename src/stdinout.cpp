@@ -1,3 +1,5 @@
+#if defined(STDINOUT)
+
 #if ARDUINO >= 100
 #include "Arduino.h"
 #else
@@ -46,3 +48,4 @@ initializeSTDINOUT::initializeSTDINOUT()
                 setup_stdin_stdout();
         }
 }
+#endif // STDINOUT
